@@ -1,1 +1,0 @@
-Run Parser, it will print table and print errors
