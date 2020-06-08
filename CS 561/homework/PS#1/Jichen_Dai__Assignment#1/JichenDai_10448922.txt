@@ -1,0 +1,154 @@
+/*--------------------------------------------------------------------------
+	Author: Jichen Dai
+	CWID: 10448922
+	Date: 04/09/2020
+----------------------------------------------------------------------------*/
+
+
+
+
+
+
+/*-----------------------Solution for query #1------------------------------*/
+
+with min_max(cust, min_q, max_q, avg_q) as(
+	select cust, min(quant) min_q, max(quant) max_q, avg(quant) avg_q
+	from sales
+	group by cust
+)
+
+select s1.cust, min_q, s1.prod, s1.day, s1.month, s1.year, s1.state, max_q, s2.prod, s2.day, s2.month, s2.year, s2.state, avg_q
+from min_max, sales as s1, sales as s2
+where s1.cust = min_max.cust and s1.quant = min_max.min_q and s2.cust = min_max.cust and s2.quant = min_max.max_q;
+
+
+
+
+/*-----------------------Solution for query #2------------------------------*/
+
+with month_day_sum(month, day, sum) as(
+	select month, day, sum(quant) 
+	from sales
+	group by month, day
+),
+month_most_least(month, most_profit_total_q, least_profit_total_q) as(
+	select month, max(sum), min(sum)
+	from month_day_sum
+	group by month 
+)
+
+select t1.month, t1.day as most_profit_day, most_profit_total_q, t2.day as least_profit_day, least_profit_total_q
+from month_day_sum t1, month_day_sum t2, month_most_least
+where t1.month = month_most_least.month and t1.sum = most_profit_total_q and t2.month = month_most_least.month and t2.sum = least_profit_total_q 
+order by month;
+
+
+
+
+/*-----------------------Solution for query #3------------------------------*/
+
+with prod_month_sum(prod, month, sum) as(
+	select prod, month, sum(quant)
+	from sales
+	group by prod, month
+),
+prod_max_min(prod, max, min)as(
+	select prod, max(sum), min(sum)
+	from prod_month_sum
+	group by prod
+)
+
+select t1.prod, t1.month as most_fav_mo, t2.month as least_fav_mo
+from prod_max_min, prod_month_sum as t1, prod_month_sum as t2
+where t1.prod = prod_max_min.prod and t1.sum = prod_max_min.max and t2.prod = prod_max_min.prod and t2.sum = prod_max_min.min
+order by prod;
+
+
+
+
+/*-----------------------Solution for query #4------------------------------*/
+
+with t1(cust, prod, q1_avg) as(	
+	select cust, prod, round(avg(quant),2) q1_avg
+	from sales
+	where month between 1 and 3
+	group by cust, prod
+),
+t2(cust, prod, q2_avg) as(	
+	select cust, prod, round(avg(quant),2) q2_avg
+	from sales
+	where month between 4 and 6
+	group by cust, prod
+),
+t3(cust, prod, q3_avg) as(	
+	select cust, prod, round(avg(quant),2) q3_avg
+	from sales
+	where month between 7 and 9
+	group by cust, prod
+),
+t4(cust, prod, q4_avg) as(	
+	select cust, prod, round(avg(quant),2) q4_avg
+	from sales
+	where month between 10 and 12
+	group by cust, prod
+),
+t5(cust, prod, average, total, count) as( 
+select cust, prod, round(avg(quant),2) average, sum(quant) total, count(quant) count
+from sales 
+group by cust, prod
+)
+
+select t5.cust, t5.prod, t1.q1_avg, t2.q2_avg, t3.q3_avg, t4.q4_avg, t5.average, t5.total, t5.count
+from 
+	t5 
+	left join t1 on t5.cust = t1.cust and t5.prod = t1.prod
+	left join t2 on t5.cust = t2.cust and t5.prod = t2.prod
+	left join t3 on t5.cust = t3.cust and t5.prod = t3.prod 
+	left join t4 on t5.cust = t4.cust and t5.prod = t4.prod;
+
+
+
+
+
+/*-----------------------Solution for query #5------------------------------*/
+
+with t1(cust, prod, NJ_MAX) as (
+	select cust,prod,max(quant) as NJ_MAX
+	from sales 
+	where state = 'NJ'
+	group by cust,prod
+),
+t2(cust, prod, NY_MAX) as (
+	select cust,prod,max(quant) as NY_MAX
+	from sales 
+	where state = 'NY'
+	group by cust,prod
+),
+t3(cust, prod, CT_MAX) as (
+	select cust,prod,max(quant) as CT_MAX
+	from sales 
+	where state = 'CT'
+	group by cust,prod
+
+),
+lack_date(CUST, PRODUCT, NJ_MAX, NY_MAX, CT_MAX)as(
+	select t2.CUST, t2.PROD, t1.NJ_MAX, t2.NY_MAX, t3.CT_MAX 
+	from t2 
+		left join t1 on t1.cust = t2.cust and t1.prod = t2.prod
+		left join t3 on t3.cust = t2.cust and t3.prod = t2.prod
+	where NY_max > NJ_max or NY_max > CT_max
+	group by t2.cust, t2.prod, t1.NJ_MAX, t2.NY_MAX, t3.CT_MAX
+)
+
+select lack_date.cust, lack_date.product, lack_date.NJ_MAX, date1.day, date1.month, date1.year, lack_date.NY_MAX, date2.day, date2.month, date2.year, lack_date.CT_MAX, date3.day, date3.month, date3.year 
+from
+	lack_date
+	left join (select cust, prod, quant, day, month, year from sales) as date1 
+	on date1.cust = lack_date.cust and date1.prod = lack_date.product and date1.quant = lack_date.NJ_max
+	left join (select cust, prod, quant, day, month, year from sales) as date2 
+	on date2.cust = lack_date.cust and date2.prod = lack_date.product and date2.quant = lack_date.NY_max
+	left join (select cust, prod, quant, day, month, year from sales) as date3
+	on date3.cust = lack_date.cust and date3.prod = lack_date.product and date3.quant = lack_date.CT_max
+order by lack_date.cust, lack_date.product;
+
+

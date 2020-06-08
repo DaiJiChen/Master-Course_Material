@@ -1,0 +1,140 @@
+///////////////////////////// question#1 ////////////////////////////
+with previous(prod, month, p_avg) as (
+	select t1.prod, t1.month, round(avg(t2.quant), 2)
+	from sales as t1, sales as t2
+	where t1.prod = t2.prod and t1.month = t2.month + 1 and t1.month>1
+	group by t1.prod, t1.month
+),
+after(prod, month, a_avg) as (
+	select t1.prod, t1.month, round(avg(t2.quant), 2)
+	from sales as t1, sales as t2
+	where t1.prod = t2.prod and t1.month = t2.month - 1 and t1.month<12
+	group by t1.prod, t1.month
+),
+full_p_m(prod, month) as (
+	select distinct prod.prod, month.month
+	from (select distinct prod from sales) as prod, (select distinct month from sales) as month
+	order by prod, month
+),
+p_a(prod, month, p_avg, a_avg) as (
+	select full_p_m.prod, full_p_m.month, p_avg, a_avg
+	from full_p_m 
+	full join previous on full_p_m.prod = previous.prod and full_p_m.month = previous.month
+	full join after on full_p_m.prod = after.prod and full_p_m.month = after.month
+),
+not_null(prod, month,sales_count_between_avgs) as (
+	select sales.prod, sales.month, count(sales.quant)
+	from sales, p_a
+	where (sales.quant > p_a.p_avg and sales.quant < p_a.a_avg and p_a.prod = sales.prod and p_a.month = sales.month) 
+		or(sales.quant > p_a.a_avg and sales.quant < p_a.p_avg and p_a.prod = sales.prod and p_a.month = sales.month)
+	group by sales.prod, sales.month
+)
+select p_a.prod, p_a.month, not_null.sales_count_between_avgs
+from not_null
+full join p_a on not_null.prod = p_a.prod and not_null.month = p_a.month
+
+
+
+
+///////////////////////////// question#2 ////////////////////////////
+with during(cust, prod, month, during_avg) as (
+ select cust, prod, month, round(avg(quant),2)
+ from sales
+ group by cust, prod, month
+),
+whole(cust, prod, month) as ( 
+ select distinct cust.cust, prod.prod, month.month
+ from (select distinct cust from sales) as cust, (select distinct prod from sales) as prod, (select distinct month from sales) as month
+ order by cust, prod, month
+),
+during_avg(cust, prod, month, during_avg) as (
+ select whole.cust, whole.prod, whole.month, during.during_avg
+ from whole 
+ left join during on whole.cust=during.cust and whole.prod=during.prod and whole.month=during.month
+),
+before_avg(cust, prod, month, before_AVG) as (
+ select t1.cust, t1.prod, t1.month, t2.during_avg
+ from during_avg as t1, during_avg as t2
+ where t2.month = t1.month -1 and t1.month >1 and t1.cust = t2.cust and t1.prod = t2.prod
+),
+after_avg(cust, prod, month, after_AVG) as (
+ select t1.cust, t1.prod, t1.month, t2.during_avg
+ from during_avg as t1, during_avg as t2
+ where t2.month = t1.month +1 and t1.month < 12 and t1.cust = t2.cust and t1.prod = t2.prod
+)
+select during_avg.cust, during_avg.prod, during_avg.month, before_avg.before_AVG, during_avg.during_avg as during_avg, after_avg.after_AVG
+from during_avg 
+full join before_avg on  during_avg.cust = before_avg.cust and during_avg.prod = before_avg.prod and during_avg.month = before_avg.month
+full join after_avg on during_avg.cust = after_avg.cust and during_avg.prod = after_avg.prod and during_avg.month = after_avg.month
+order by during_avg.cust, during_avg.prod, during_avg.month
+
+
+
+
+///////////////////////////// question#3 /////////////////////////////
+with ave(cust, prod, state, avg_q) as (
+	select cust, prod, state, round(avg(quant), 2)
+	from sales
+	group by cust, prod, state
+),
+fulls(cust, prod, state) as (
+	select distinct cust.cust, prod.prod, state.state
+	from (select distinct cust from sales) as cust, (select distinct prod from sales) as prod, (select distinct state from sales) as state
+	order by cust.cust, prod.prod, state.state
+),
+average(cust, prod, state, avg_q) as (
+	select fulls.cust, fulls.prod, fulls.state, ave.avg_q
+	from ave
+	full join fulls on ave.cust = fulls.cust and ave.prod = fulls.prod and ave.state = fulls.state
+),
+other_cust(cust, prod, state, other_cust_avg) as (
+	select t1.cust, t1.prod, t1.state, round(avg(t2.quant), 2)
+	from average as t1, sales as t2
+	where t1.cust != t2.cust and t1.prod = t2.prod and t1.state = t2.state
+	group by t1.cust, t1.prod, t1.state
+),
+other_prod(cust, prod, state, other_prod_avg) as (
+	select t1.cust, t1.prod, t1.state, round(avg(t2.quant), 2)
+	from average as t1, sales as t2
+	where t1.cust = t2.cust and t1.prod != t2.prod and t1.state = t2.state
+	group by t1.cust, t1.prod, t1.state
+)
+select average.cust, average.prod, average.state, average.avg_q as prod_avg, other_cust.other_cust_avg, other_prod.other_prod_avg
+from average
+full join other_cust on average.cust = other_cust.cust and  average.prod = other_cust.prod and average.state = other_cust.state
+full join other_prod on average.cust = other_prod.cust and  average.prod = other_prod.prod and average.state = other_prod.state
+order by average.cust, average.prod, average.state
+
+
+
+
+
+
+///////////////////////////// question#4 /////////////////////////////
+with m_sum(cust, prod, month, m_sum) as (
+	select cust, prod, month, sum(quant)
+	from sales 
+	group by cust, prod, month
+	order by cust, prod, month
+),
+y_sum(cust, prod, y_sum) as (
+	select cust, prod, sum(quant)
+	from sales
+	group by cust, prod
+	order by cust, prod
+),
+accumulate_sum(cust, prod, month, a_sum) as (
+	select m1.cust, m1.prod, m1.month, sum(m2.m_sum)
+	from m_sum as m1, m_sum as m2
+	where m1.month >= m2.month and m1.cust = m2.cust and m1.prod = m2.prod
+	group by m1.cust, m1.prod, m1.month
+	order by m1.cust, m1.prod, m1.month
+)
+select a.cust, a.prod, min(a.month) as one_third_purchased_by_month
+from accumulate_sum as a, y_sum
+where a.a_sum > y_sum.y_sum/3 and a.cust = y_sum.cust and a.prod = y_sum.prod
+group by a.cust, a.prod
+order by a.cust, a.prod
+
+
+

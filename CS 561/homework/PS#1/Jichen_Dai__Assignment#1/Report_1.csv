@@ -1,0 +1,6 @@
+cust,min_q,min_prod,min_day,min_month,min_year,st,max_q,max_prod,max_day,max_month,max_year,state,avg_q
+Emily,26,Milk,2,7,2008,CT,4986,Milk,12,11,2002,NY,2511.808081
+Knuth,24,Fruits,26,8,2001,NY,4994,Cookies,17,7,2003,CT,2302.564356
+Sam,93,Bread,13,11,2008,PA,4954,Soap,6,4,2003,PA,2385.315217
+Bloom,17,Yogurt,25,7,2004,PA,4972,Eggs,3,1,2004,NJ,2457.239583
+Helen,77,Milk,9,4,2000,NY,4969,Butter,4,6,2001,NY,2301.089286
